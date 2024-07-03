@@ -28,9 +28,13 @@ export class PyInterop {
    * Logs a message to bash shortcut's log file and the frontend console.
    * @param message The message to log.
    */
-  static async log(message: String): Promise<void> {
-    console.log(message);
-    await this.serverAPI.callPluginMethod<{ message: String }, boolean>("logMessage", { message: `[front-end]: ${message}` });
+  static async log(message: string): Promise<void> {
+    console.log(`[BashShortcuts] ${message}`);
+    try {
+      await this.serverAPI.callPluginMethod<{ message: string }, boolean>("logMessage", { message: `[front-end]: ${message}` });
+    } catch (error) {
+      console.error("[BashShortcuts] Failed to log message", error);
+    }
   }
 
   /**
@@ -38,8 +42,14 @@ export class PyInterop {
    * @returns A promise resolving to a server response containing the user's home directory.
    */
   static async getHomeDir(): Promise<ServerResponse<string>> {
-    const res = await this.serverAPI.callPluginMethod<{}, string>("getHomeDir", {});
-    return res;
+    try {
+      const res = await this.serverAPI.callPluginMethod<{}, string>("getHomeDir", {});
+      await this.log(`Home directory retrieved: ${JSON.stringify(res)}`);
+      return res;
+    } catch (error) {
+      await this.log(`Failed to get home directory: ${error}`);
+      throw error;
+    }
   }
 
   /**
@@ -48,17 +58,16 @@ export class PyInterop {
    * @param message The message of the toast.
    */
   static toast(title: string, message: string): void {
-    return (() => {
-      try {
-        return this.serverAPI.toaster.toast({
-          title: title,
-          body: message,
-          duration: 8000,
-        });
-      } catch (e) {
-        console.log("Toaster Error", e);
-      }
-    })();
+    try {
+      this.serverAPI.toaster.toast({
+        title: title,
+        body: message,
+        duration: 8000,
+      });
+      this.log(`Toast message shown: ${title} - ${message}`);
+    } catch (e) {
+      this.log(`Toaster Error: ${e}`);
+    }
   }
 
   /**
@@ -66,7 +75,14 @@ export class PyInterop {
    * @returns A promise resolving to a server response containing the shortcuts dictionary.
    */
   static async getShortcuts(): Promise<ServerResponse<ShortcutsDictionary>> {
-    return await this.serverAPI.callPluginMethod<{}, ShortcutsDictionary>("getShortcuts", {});
+    try {
+      const res = await this.serverAPI.callPluginMethod<{}, ShortcutsDictionary>("getShortcuts", {});
+      await this.log(`Shortcuts retrieved: ${JSON.stringify(res)}`);
+      return res;
+    } catch (error) {
+      await this.log(`Failed to get shortcuts: ${error}`);
+      throw error;
+    }
   }
 
   /**
@@ -74,7 +90,14 @@ export class PyInterop {
    * @returns The guides.
    */
   static async getGuides(): Promise<ServerResponse<GuidePages>> {
-    return await this.serverAPI.callPluginMethod<{}, GuidePages>("getGuides", {});
+    try {
+      const res = await this.serverAPI.callPluginMethod<{}, GuidePages>("getGuides", {});
+      await this.log(`Guides retrieved: ${JSON.stringify(res)}`);
+      return res;
+    } catch (error) {
+      await this.log(`Failed to get guides: ${error}`);
+      throw error;
+    }
   }
 
   /**
@@ -84,7 +107,14 @@ export class PyInterop {
    * @returns A promise resolving to the setting's value.
    */
   static async getSetting<T>(key: string, defaultVal: T): Promise<T> {
-    return (await this.serverAPI.callPluginMethod<{ key: string, defaultVal: T }, T>("getSetting", { key: key, defaultVal: defaultVal })).result as T;
+    try {
+      const res = await this.serverAPI.callPluginMethod<{ key: string, defaultVal: T }, T>("getSetting", { key: key, defaultVal: defaultVal });
+      await this.log(`Setting retrieved: ${JSON.stringify(res)}`);
+      return res.result as T;
+    } catch (error) {
+      await this.log(`Failed to get setting: ${error}`);
+      throw error;
+    }
   }
 
   /**
@@ -94,7 +124,14 @@ export class PyInterop {
    * @returns A void promise resolving once the setting is set.
    */
   static async setSetting<T>(key: string, newVal: T): Promise<ServerResponse<void>> {
-    return await this.serverAPI.callPluginMethod<{ key: string, newVal : T}, void>("setSetting", { key: key, newVal: newVal });
+    try {
+      const res = await this.serverAPI.callPluginMethod<{ key: string, newVal: T }, void>("setSetting", { key: key, newVal: newVal });
+      await this.log(`Setting set: ${JSON.stringify(res)}`);
+      return res;
+    } catch (error) {
+      await this.log(`Failed to set setting: ${error}`);
+      throw error;
+    }
   }
 
   /**
@@ -103,7 +140,14 @@ export class PyInterop {
    * @returns A promise resolving to a server response containing the updated shortcuts dictionary.
    */
   static async addShortcut(shortcut: Shortcut): Promise<ServerResponse<ShortcutsDictionary>> {
-    return await this.serverAPI.callPluginMethod<{ shortcut: Shortcut }, ShortcutsDictionary>("addShortcut", { shortcut: shortcut });
+    try {
+      const res = await this.serverAPI.callPluginMethod<{ shortcut: Shortcut }, ShortcutsDictionary>("addShortcut", { shortcut: shortcut });
+      await this.log(`Shortcut added: ${JSON.stringify(res)}`);
+      return res;
+    } catch (error) {
+      await this.log(`Failed to add shortcut: ${error}`);
+      throw error;
+    }
   }
 
   /**
@@ -112,7 +156,14 @@ export class PyInterop {
    * @returns A promise resolving to a server response containing the updated shortcuts dictionary.
    */
   static async setShortcuts(shortcuts: ShortcutsDictionary): Promise<ServerResponse<ShortcutsDictionary>> {
-    return await this.serverAPI.callPluginMethod<{ shortcuts: ShortcutsDictionary }, ShortcutsDictionary>("setShortcuts", { shortcuts: shortcuts });
+    try {
+      const res = await this.serverAPI.callPluginMethod<{ shortcuts: ShortcutsDictionary }, ShortcutsDictionary>("setShortcuts", { shortcuts: shortcuts });
+      await this.log(`Shortcuts set: ${JSON.stringify(res)}`);
+      return res;
+    } catch (error) {
+      await this.log(`Failed to set shortcuts: ${error}`);
+      throw error;
+    }
   }
 
   /**
@@ -121,7 +172,14 @@ export class PyInterop {
    * @returns A promise resolving to a server response containing the updated shortcuts dictionary.
    */
   static async modShortcut(shortcut: Shortcut): Promise<ServerResponse<ShortcutsDictionary>> {
-    return await this.serverAPI.callPluginMethod<{ shortcut: Shortcut }, ShortcutsDictionary>("modShortcut", { shortcut: shortcut });
+    try {
+      const res = await this.serverAPI.callPluginMethod<{ shortcut: Shortcut }, ShortcutsDictionary>("modShortcut", { shortcut: shortcut });
+      await this.log(`Shortcut modified: ${JSON.stringify(res)}`);
+      return res;
+    } catch (error) {
+      await this.log(`Failed to modify shortcut: ${error}`);
+      throw error;
+    }
   }
 
   /**

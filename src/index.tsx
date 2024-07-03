@@ -38,13 +38,31 @@ const Content: VFC<{ serverAPI: ServerAPI }> = ({ }) => {
   const { shortcuts, setShortcuts, shortcutsList } = useShortcutsState();
   const tries = useRef(0);
 
+  console.log("[BashShortcuts] Content component rendered");
+  console.log("[BashShortcuts] useShortcutsState returned", { shortcuts, setShortcuts, shortcutsList });
+
   async function reload(): Promise<void> {
-    await PyInterop.getShortcuts().then((res) => {
-      setShortcuts(res.result as ShortcutsDictionary);
-    });
+    console.log("[BashShortcuts] Reloading shortcuts");
+    try {
+      const res = await PyInterop.getShortcuts();
+      if (res && res.result) {
+        console.log("[BashShortcuts] Shortcuts reloaded", res.result);
+        if (setShortcuts) {
+          setShortcuts(res.result as ShortcutsDictionary);
+          console.log("[BashShortcuts] setShortcuts called successfully");
+        } else {
+          console.error("[BashShortcuts] setShortcuts is undefined");
+        }
+      } else {
+        console.error("[BashShortcuts] Failed to reload shortcuts: Invalid response", res);
+      }
+    } catch (error) {
+      console.error("[BashShortcuts] Failed to reload shortcuts", error);
+    }
   }
 
   if (Object.values(shortcuts as ShortcutsDictionary).length === 0 && tries.current < 10) {
+    console.log("[BashShortcuts] No shortcuts found, reloading...");
     reload();
     tries.current++;
   }
@@ -55,7 +73,6 @@ const Content: VFC<{ serverAPI: ServerAPI }> = ({ }) => {
         .bash-shortcuts-scope {
           width: inherit;
           height: inherit;
-
           flex: 1 1 1px;
           scroll-padding: 48px 0px;
           display: flex;
@@ -78,7 +95,11 @@ const Content: VFC<{ serverAPI: ServerAPI }> = ({ }) => {
       <div className="bash-shortcuts-scope">
         <PanelSection>
           <PanelSectionRow>
-            <ButtonItem layout="below" onClick={() => { Navigation.CloseSideMenus(); Navigation.Navigate("/bash-shortcuts-config"); }} >
+            <ButtonItem layout="below" onClick={() => {
+              console.log("[BashShortcuts] Navigating to Plugin Config");
+              Navigation.CloseSideMenus();
+              Navigation.Navigate("/bash-shortcuts-config");
+            }} >
               Plugin Config
             </ButtonItem>
           </PanelSectionRow>
@@ -89,7 +110,7 @@ const Content: VFC<{ serverAPI: ServerAPI }> = ({ }) => {
               <>
                 {
                   shortcutsList.map((itm: Shortcut) => (
-                    <ShortcutLauncher shortcut={itm} />
+                    <ShortcutLauncher key={itm.id} shortcut={itm} />
                   ))
                 }
                 <PanelSectionRow>
@@ -107,6 +128,7 @@ const Content: VFC<{ serverAPI: ServerAPI }> = ({ }) => {
 };
 
 const ShortcutsManagerRouter: VFC<{ guides: GuidePages }> = ({ guides }) => {
+  console.log("[BashShortcuts] ShortcutsManagerRouter component rendered", guides);
   const guidePages = {}
   Object.entries(guides).map(([ guideName, guide ]) => {
     guidePages[guideName] = {
@@ -152,6 +174,7 @@ const ShortcutsManagerRouter: VFC<{ guides: GuidePages }> = ({ guides }) => {
 };
 
 export default definePlugin((serverApi: ServerAPI) => {
+  console.log("[BashShortcuts] Plugin defined");
   PyInterop.setServer(serverApi);
 
   const state = new ShortcutsState();
@@ -161,13 +184,15 @@ export default definePlugin((serverApi: ServerAPI) => {
 
   PyInterop.getGuides().then((res: ServerResponse<GuidePages>) => {
     const guides = res.result as GuidePages;
-    console.log("Guides:", guides);
+    console.log("[BashShortcuts] Guides loaded", guides);
 
     serverApi.routerHook.addRoute("/bash-shortcuts-config", () => (
       <ShortcutsContextProvider shortcutsStateClass={state}>
         <ShortcutsManagerRouter guides={guides} />
       </ShortcutsContextProvider>
     ));
+  }).catch((error) => {
+    console.error("[BashShortcuts] Failed to load guides", error);
   });
 
   return {
@@ -179,6 +204,7 @@ export default definePlugin((serverApi: ServerAPI) => {
     ),
     icon: <IoApps />,
     onDismount() {
+      console.log("[BashShortcuts] Plugin dismounted");
       loginHook.unregister();
       serverApi.routerHook.removeRoute("/bash-shortcuts-config");
       PluginController.dismount();
